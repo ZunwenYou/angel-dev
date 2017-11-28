@@ -384,7 +384,7 @@ public class AngelConf extends Configuration {
    * higher the priority.
    */
   public static final String ANGEL_WORKER_PRIORITY = ANGEL_WORKER_PREFIX + "priority";
-  public static final int DEFAULT_ANGEL_WORKER_PRIORITY = 20;
+  public static final int DEFAULT_ANGEL_WORKER_PRIORITY = 10;
 
   /**
    * The maxinum staleness value between tasks, it used to consistency controlling between tasks. 0

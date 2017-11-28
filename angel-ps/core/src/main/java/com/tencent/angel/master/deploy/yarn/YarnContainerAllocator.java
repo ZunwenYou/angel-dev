@@ -282,14 +282,29 @@ public class YarnContainerAllocator extends ContainerAllocator {
       for(ResourceRequest request : ask) {
         LOG.info("ask request=" + request);
       }
-      
+
+      // setup container requests
+      Resource capability1 = Resource.newInstance(2048, 1);
+      Priority priority1 = Priority.newInstance(10);
+      ResourceRequest remoteRequest = recordFactory.newRecordInstance(ResourceRequest.class);
+      remoteRequest.setPriority(priority1);
+      remoteRequest.setResourceName("*");
+      remoteRequest.setCapability(capability1);
+      remoteRequest.setNumContainers(3);
+      remoteRequest.setRelaxLocality(true);
+      ArrayList<ResourceRequest> requestList = new ArrayList<ResourceRequest>();
+      requestList.add(remoteRequest);
+      AllocateRequest allocateRequest;
       //build heartbeat request
-      AllocateRequest allocateRequest =
-          AllocateRequest.newInstance(lastResponseId, 0.5f, new ArrayList<ResourceRequest>(ask),
-              new ArrayList<ContainerId>(release), blacklistRequest);
-
-      LOG.debug("heartbeat, allocateRequest = " + allocateRequest.toString());
-
+      int needSize = ask.size();
+      if (needSize > 0){
+        allocateRequest = AllocateRequest.newInstance(lastResponseId, 0.5f, requestList,
+                        new ArrayList<ContainerId>(release), blacklistRequest);
+      }
+      else{
+        allocateRequest = AllocateRequest.newInstance(lastResponseId, 0.5f, new ArrayList<ResourceRequest>(ask),
+                        new ArrayList<ContainerId>(release), blacklistRequest);
+      }
       //send heartbeat request to rm
       AllocateResponse allocateResponse;
       try {
@@ -317,9 +332,7 @@ public class YarnContainerAllocator extends ContainerAllocator {
       }
 
       List<Container> newContainers = allocateResponse.getAllocatedContainers();
-      if (LOG.isDebugEnabled()) {
-        printContainersInfo(newContainers);
-      }
+      printContainersInfo(newContainers);
 
       // Setting NMTokens
       if (allocateResponse.getNMTokens() != null) {
@@ -411,10 +424,9 @@ public class YarnContainerAllocator extends ContainerAllocator {
   private void printContainersInfo(List<Container> newContainers) {
     if (newContainers != null) {
       for (Container c : newContainers) {
-        LOG.debug("finish" + c.toString());
+        LOG.info("finish" + c.toString());
       }
-    }
-  }
+  }}
 
   private void register() throws YarnException, IOException {
     RegisterApplicationMasterRequest request =
@@ -606,6 +618,7 @@ public class YarnContainerAllocator extends ContainerAllocator {
       idToRequestMaps.put(request.priority, idToRequestMap);
     }
     idToRequestMap.put(id, request);
+
     if (request.hosts != null && request.hosts.length > 0) {
       Map<String, LinkedList<Id>> hostToIDListMap = hostToIDListMaps.get(request.priority);
       if (hostToIDListMap == null) {
@@ -624,25 +637,24 @@ public class YarnContainerAllocator extends ContainerAllocator {
       }
     }
 
-    if (request.racks != null && request.racks.length > 0) {
-      Map<String, LinkedList<Id>> rackToIDListMap = rackToIDListMaps.get(request.priority);
-      if (rackToIDListMap == null) {
-        rackToIDListMap = new HashMap<String, LinkedList<Id>>();
-        hostToIDListMaps.put(request.priority, rackToIDListMap);
-      }
-
-      for (String rack : request.racks) {
-        LinkedList<Id> idList = rackToIDListMap.get(rack);
-        if (idList == null) {
-          idList = new LinkedList<Id>();
-          rackToIDListMap.put(rack, idList);
-        }
-        idList.add(id);
-        addResourceRequest(request.priority, rack, request.capability);
-      }
-    }
-
-    addResourceRequest(request.priority, ResourceRequest.ANY, request.capability);
+//    if (request.racks != null && request.racks.length > 0) {
+//      Map<String, LinkedList<Id>> rackToIDListMap = rackToIDListMaps.get(request.priority);
+//      if (rackToIDListMap == null) {
+//        rackToIDListMap = new HashMap<String, LinkedList<Id>>();
+//        hostToIDListMaps.put(request.priority, rackToIDListMap);
+//      }
+//
+//      for (String rack : request.racks) {
+//        LinkedList<Id> idList = rackToIDListMap.get(rack);
+//        if (idList == null) {
+//          idList = new LinkedList<Id>();
+//          rackToIDListMap.put(rack, idList);
+//        }
+//        idList.add(id);
+//        addResourceRequest(request.priority, rack, request.capability);
+//      }
+//    }
+//    addResourceRequest(request.priority, ResourceRequest.ANY, request.capability);
   }
 
   private void addResourceRequest(Priority priority, String resourceName, Resource capability) {
@@ -670,14 +682,18 @@ public class YarnContainerAllocator extends ContainerAllocator {
       reqMap.put(capability, remoteRequest);
     }
     remoteRequest.setNumContainers(remoteRequest.getNumContainers() + 1);
-
-    if (context.getPSAgentManager() != null
-        && priority == context.getPSAgentManager().getPsAgentPriority()) {
-      remoteRequest.setRelaxLocality(false);
+    
+    if (context.getPSAgentManager() != null && priority == context.getPSAgentManager().getPsAgentPriority()) {
+       remoteRequest.setRelaxLocality(false);
     }
 
     // Note this down for next interaction with ResourceManager
     addResourceRequestToAsk(remoteRequest);
+
+    LOG.info("addResourceRequest:" + " applicationId=" + context.getApplicationId()
+            + " priority=" + priority.getPriority() + " resourceName=" + resourceName
+            + " numContainers=" + remoteRequest.getNumContainers() + " #asks=" + ask.size());
+
     if (LOG.isDebugEnabled()) {
       LOG.debug("addResourceRequest:" + " applicationId=" + context.getApplicationId()
           + " priority=" + priority.getPriority() + " resourceName=" + resourceName
@@ -687,9 +703,12 @@ public class YarnContainerAllocator extends ContainerAllocator {
 
   private void addResourceRequestToAsk(ResourceRequest remoteRequest) {
     if (ask.contains(remoteRequest)) {
-      ask.remove(remoteRequest);
+//      ask.remove(remoteRequest);
     }
-    ask.add(remoteRequest);
+    int containersNum = remoteRequest.getNumContainers();
+    if(containersNum>0){
+      ask.add(remoteRequest);
+    }
   }
 
   private void decResourceRequest(Priority priority, String resourceName, Resource capability) {
@@ -741,6 +760,9 @@ public class YarnContainerAllocator extends ContainerAllocator {
   private void containersNotAssigned(List<Container> containers) {
     containersReleased += containers.size();
     int size = containers.size();
+    if(size>0){
+      LOG.info("The containers leftover to be released:" + String.valueOf(size));
+    }
     for (int i = 0; i < size; i++) {
       LOG.info("need release container=" + containers.get(i));
       release.add(containers.get(i).getId());
@@ -759,13 +781,13 @@ public class YarnContainerAllocator extends ContainerAllocator {
       return;
     }
 
-    if (req.racks != null) {
-      for (String rack : req.racks) {
-        decResourceRequest(req.priority, rack, req.capability);
-      }
-    }
+//    if (req.racks != null) {
+//      for (String rack : req.racks) {
+//        decResourceRequest(req.priority, rack, req.capability);
+//      }
+//    }
 
-    decResourceRequest(req.priority, ResourceRequest.ANY, req.capability);
+//    decResourceRequest(req.priority, ResourceRequest.ANY, req.capability);
   }
 
   private void assignContainers(List<Container> allocatedContainers) {
@@ -780,21 +802,17 @@ public class YarnContainerAllocator extends ContainerAllocator {
           || idToRequestMap.isEmpty()) {
         continue;
       }
-
       String host = allocated.getNodeId().getHost();
       LinkedList<Id> list = hostToIDListMap.get(host);
       while (list != null && list.size() > 0) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Host matched to the request list " + host);
-        }
+        LOG.info("Host matched to the request list " + host);
         Id tId = list.removeFirst();
         if (idToRequestMap.containsKey(tId)) {
           ContainerRequest assigned = idToRequestMap.remove(tId);
           containerAssigned(allocated, assigned);
           it.remove();
-
           hostLocalAssigned++;
-          LOG.debug("Assigned based on host match " + host);
+          LOG.info("Assigned based on host match " + host);
           break;
         }
       }
@@ -822,9 +840,7 @@ public class YarnContainerAllocator extends ContainerAllocator {
           containerAssigned(allocated, assigned);
           it.remove();
           rackLocalAssigned++;
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Assigned based on rack match " + rack);
-          }
+          LOG.info("Assigned based on rack match " + rack);
           break;
         }
       }
@@ -846,9 +862,12 @@ public class YarnContainerAllocator extends ContainerAllocator {
       ContainerRequest assigned = idToRequestMap.remove(tId);
       containerAssigned(allocated, assigned);
       it.remove();
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Assigned based on * match");
-      }
+      LOG.info("Assigned based on * match");
+    }
+
+    int unallocated = allocatedContainers.size();
+    if(unallocated > 0){
+      LOG.info("The number of unallocated containers: "+ String.valueOf(unallocated));
     }
   }
 

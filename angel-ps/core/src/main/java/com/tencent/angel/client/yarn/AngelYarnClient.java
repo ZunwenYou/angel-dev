@@ -169,6 +169,7 @@ public class AngelYarnClient extends AngelClient {
       
       waitForAllPS(conf.getInt(AngelConf.ANGEL_PS_NUMBER, AngelConf.DEFAULT_ANGEL_PS_NUMBER));
       LOG.info("start pss success");
+
     } catch (Exception x) {
       LOG.error("submit application to yarn failed.", x);
       throw new AngelException(x);

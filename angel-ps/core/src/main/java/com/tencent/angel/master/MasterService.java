@@ -373,6 +373,7 @@ public class MasterService extends AbstractService implements MasterProtocol {
     //choose a unused port
     int servicePort = NetUtils.chooseAListenPort(conf);
     String ip = NetUtils.getRealLocalIP();
+    ip = "10.2.0.46";
     LOG.info("listen ip:" + ip + ", port:" + servicePort);
 
     location = new Location(ip, servicePort);

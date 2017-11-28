@@ -50,6 +50,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.lang.*;
 
 /**
  * Angel application client. It provides the control interfaces for the application.
@@ -72,6 +73,7 @@ public abstract class AngelClient implements AngelClientInterface {
   private boolean isExecuteFinished;
   private boolean isFinished;
   private String appFailedMessage;
+  private long previousTime;
 
   /** temporary file use to store application state */
   protected Path internalStateFile;
@@ -95,6 +97,7 @@ public abstract class AngelClient implements AngelClientInterface {
     matrixList = new ArrayList<MatrixProto>();
     isExecuteFinished = false;
     isFinished = false;
+    previousTime = System.currentTimeMillis();
   }
   
   @SuppressWarnings("rawtypes")
@@ -463,7 +466,10 @@ public abstract class AngelClient implements AngelClientInterface {
     JobReportProto report = response.getJobReport();
     // JobStateProto jobState = report.getJobState();
     if (lastReport == null || (report.hasCurIteration() && report.getCurIteration() != lastReport.getJobReport().getCurIteration())) {
-      LOG.info("Epoch: " + report.getCurIteration() + ". Metrics=" + toString(report.getMetricsList()));
+      long currentTime = System.currentTimeMillis();
+      double elapsedTime = (currentTime - previousTime) / 1000.0;
+      previousTime = currentTime;
+      LOG.info("Epoch: " + report.getCurIteration() + ". Metrics=" + toString(report.getMetricsList()) + ". Time in seconds : " + String.valueOf(elapsedTime));
       if (report.hasLoss()) {
         LOG.info("loss/success: " + report.getLoss() + "/" + report.getSuccess());
       }
