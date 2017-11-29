@@ -469,7 +469,7 @@ public abstract class AngelClient implements AngelClientInterface {
       long currentTime = System.currentTimeMillis();
       double elapsedTime = (currentTime - previousTime) / 1000.0;
       previousTime = currentTime;
-      LOG.info("Epoch: " + report.getCurIteration() + ". Metrics=" + toString(report.getMetricsList()) + ". Time in seconds : " + String.valueOf(elapsedTime));
+      LOG.info("Epoch: " + report.getCurIteration() + ". Metrics=" + toString(report.getMetricsList()) + ". Time=" + String.valueOf(elapsedTime));
       if (report.hasLoss()) {
         LOG.info("loss/success: " + report.getLoss() + "/" + report.getSuccess());
       }

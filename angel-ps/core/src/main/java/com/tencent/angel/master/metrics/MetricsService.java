@@ -55,6 +55,8 @@ public class MetricsService extends AbstractService implements EventHandler<Metr
   /** Algorithm index calculate thread */
   private Thread handler;
 
+  private long previousTime;
+
   /** Event queue */
   private final LinkedBlockingDeque<MetricsEvent> eventQueue;
 
@@ -83,6 +85,7 @@ public class MetricsService extends AbstractService implements EventHandler<Metr
     eventQueue = new LinkedBlockingDeque<>();
     stopped = new AtomicBoolean(false);
     currentIter = 0;
+    previousTime = System.currentTimeMillis();
   }
 
   /**
@@ -128,7 +131,6 @@ public class MetricsService extends AbstractService implements EventHandler<Metr
               case ALGORITHM_METRICS_UPDATE:
                 mergeAlgoMetrics(((MetricsUpdateEvent) event).getNameToMetrcMap());
                 break;
-
               case TASK_ITERATION_UPDATE: {
                 int minIter = context.getWorkerManager().getMinIteration();
                 if(minIter > currentIter) {
@@ -137,7 +139,6 @@ public class MetricsService extends AbstractService implements EventHandler<Metr
                 }
                 break;
               }
-
               default:
                 break;
             }
@@ -215,14 +216,15 @@ public class MetricsService extends AbstractService implements EventHandler<Metr
         LOG.error("write index values to file failed ", e);
       }
     }
-
     try {
       ObjectMapper mapper = new ObjectMapper();
-      LOG.info("Epoch=" + epoch + " Metrics=" + mapper.writeValueAsString(nameToMetricMap));
+      long currentTime = System.currentTimeMillis();
+      double elapsedTime = (currentTime - previousTime) / 1000.0;
+      previousTime = currentTime;
+      LOG.info("Epoch=" + epoch + " Metrics=" + mapper.writeValueAsString(nameToMetricMap) + " Time=" + elapsedTime);
     } catch (Exception e) {
       LOG.info("LOG metrics error " + e);
     }
-
   }
 
   private String toString(Map<String, String> metrics){

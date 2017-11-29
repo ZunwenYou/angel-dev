@@ -25,6 +25,7 @@ import com.tencent.angel.protobuf.generated.MLProtos;
 import com.tencent.angel.protobuf.generated.MLProtos.RowType;
 import com.tencent.angel.ps.LongKeyPartitioner;
 import com.tencent.angel.ps.PSPartitioner;
+import com.tencent.angel.ps.CustomPartitioner;
 import com.tencent.angel.ps.Partitioner;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -294,7 +295,8 @@ public class MatrixContext {
     if(rowType == RowType.T_DOUBLE_SPARSE_LONGKEY) {
       partitioner = new LongKeyPartitioner();
     } else {
-      partitioner = new PSPartitioner();
+//      partitioner = new PSPartitioner();
+      partitioner = new CustomPartitioner();
     }
   }
 
@@ -336,7 +338,6 @@ public class MatrixContext {
     }
     return sb.toString();
   }
-
 
   /**
    * Load matrix proto from hdfs.
